@@ -1,4 +1,4 @@
-use std::usize;
+use std::{io::Read, usize};
 
 use self::OpCode::*;
 #[derive(Debug, Clone, Copy)]
@@ -15,13 +15,14 @@ pub enum OpCode {
     Load = 0xf9,
     Store = 0xfa,
     Print = 0xfb,
+    Input = 0xfc,
     Debug = 0xff,
 }
 
 impl OpCode {
     pub fn iterator() -> impl Iterator<Item = OpCode> {
         [
-            Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print,
+            Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print, Input,
         ]
         .iter()
         .copied()
@@ -137,4 +138,14 @@ pub fn impl_store(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u
     }
     *pc += 3;
     false
+}
+
+pub fn impl_input(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
+    let mut input = String::new();
+    std::io::stdin().read_to_string(&mut input).unwrap();
+    for byte in input.bytes() {
+        stack.push(byte);
+    }
+    *pc += 1;
+    true
 }
