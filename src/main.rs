@@ -14,8 +14,8 @@ fn main() {
         virtual_machine.add_byte(0xfb);
         virtual_machine.add_byte(i as u8);
     }
+    //virtual_machine.add_byte(0xfc);
     virtual_machine.add_byte(0xff);
-    virtual_machine.add_byte(0xfc);
 
     virtual_machine.run();
 }

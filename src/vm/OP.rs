@@ -1,4 +1,7 @@
-use std::{io::Read, usize};
+use std::{
+    io::{Read, Write},
+    usize,
+};
 
 use self::OpCode::*;
 #[derive(Debug, Clone, Copy)]
@@ -33,6 +36,7 @@ pub fn impl_print(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u
     let dest = ram.get(*pc + 1).copied().map(|b| b ^ key);
     let char = stack.get(dest.unwrap() as usize).copied();
     print!("{}", char.unwrap() as char);
+    let _ = std::io::stdout().flush();
     *pc += 2;
     false
 }
@@ -142,7 +146,8 @@ pub fn impl_store(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u
 
 pub fn impl_input(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
     let mut input = String::new();
-    std::io::stdin().read_to_string(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).unwrap();
+    input.pop();
     for byte in input.bytes() {
         stack.push(byte);
     }
