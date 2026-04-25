@@ -19,13 +19,15 @@ pub enum OpCode {
     Store = 0xfa,
     Print = 0xfb,
     Input = 0xfc,
+    Eq = 0xfd,
+    Dup = 0xfe,
     Debug = 0xff,
 }
 
 impl OpCode {
     pub fn iterator() -> impl Iterator<Item = OpCode> {
         [
-            Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print, Input,
+            Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print, Input, Eq, Dup,
         ]
         .iter()
         .copied()
@@ -50,43 +52,34 @@ pub fn impl_push(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8
     false
 }
 
-pub fn impl_pop(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
-    if stack.pop().is_some() {
-        *pc += 1;
-        return true;
-    }
-    false
+pub fn impl_pop(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
+    stack.pop();
+    *pc += 1;
+    true
 }
 
-pub fn impl_add(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
-    if stack.len() >= 2 {
-        let a = stack.pop().unwrap();
-        let b = stack.pop().unwrap();
-        stack.push(b.wrapping_add(a));
-        *pc += 1;
-        return true;
-    }
-    false
+pub fn impl_add(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
+    let a = stack.pop().unwrap_or(0);
+    let b = stack.pop().unwrap_or(0);
+    stack.push(b.wrapping_add(a));
+    *pc += 1;
+    true
 }
 
-pub fn impl_sub(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
-    if stack.len() >= 2 {
-        let a = stack.pop().unwrap();
-        let b = stack.pop().unwrap();
-        stack.push(b.wrapping_sub(a));
-        *pc += 1;
-        return true;
-    }
-    false
+pub fn impl_sub(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
+    let a = stack.pop().unwrap_or(0);
+    let b = stack.pop().unwrap_or(0);
+    stack.push(b.wrapping_sub(a));
+    *pc += 1;
+    true
 }
 
 pub fn impl_jmp(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
     let dest = ram.get(*pc + 1).copied().map(|b| b ^ key);
     if let Some(dest) = dest {
         *pc = dest as usize;
-        return true;
     }
-    false
+    true
 }
 
 pub fn impl_jz(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
@@ -97,10 +90,9 @@ pub fn impl_jz(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) 
             *pc = dest as usize;
             return true;
         }
-    } else {
-        *pc += 2;
     }
-    false
+    *pc += 2;
+    true
 }
 
 pub fn impl_call(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
@@ -121,14 +113,14 @@ pub fn impl_ret(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool 
     false
 }
 
-pub fn impl_load(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
-    let addr = stack.pop().unwrap();
-    if let Some(val) = ram.get(addr as usize).copied() {
-        stack.push(val);
-        *pc += 1;
-        return true;
+pub fn impl_load(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+    if let Some(addr) = stack.pop() {
+        if let Some(val) = ram.get(addr as usize).copied() {
+            stack.push(val ^ key);
+        }
     }
-    false
+    *pc += 1;
+    true
 }
 
 pub fn impl_store(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
@@ -137,11 +129,12 @@ pub fn impl_store(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u
 
     if let (Some(dest), Some(value)) = (dest, value) {
         stack.remove(0);
-        ram[dest as usize] = value;
-        return true;
+        if dest < ram.len() as u8 {
+            ram[dest as usize] = value ^ key;
+        }
     }
     *pc += 3;
-    false
+    true
 }
 
 pub fn impl_input(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
@@ -153,4 +146,25 @@ pub fn impl_input(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key:
     }
     *pc += 1;
     true
+}
+
+pub fn impl_eq(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
+    if stack.len() >= 2 {
+        let a = stack.pop().unwrap();
+        let b = stack.pop().unwrap();
+        stack.push(if a == b { 1 } else { 0 });
+    } else {
+        stack.push(0);
+    }
+    *pc += 1;
+    true
+}
+
+pub fn impl_dup(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
+    if let Some(top) = stack.last().copied() {
+        stack.push(top);
+        *pc += 1;
+        return true;
+    }
+    false
 }

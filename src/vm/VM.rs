@@ -1,8 +1,8 @@
 use std::{fmt::Debug, process::exit, time::UNIX_EPOCH};
 
 use crate::vm::OP::{
-    impl_add, impl_call, impl_input, impl_jmp, impl_jz, impl_load, impl_pop, impl_print, impl_push,
-    impl_ret, impl_store, impl_sub, OpCode,
+    impl_add, impl_call, impl_dup, impl_eq, impl_input, impl_jmp, impl_jz, impl_load, impl_pop,
+    impl_print, impl_push, impl_ret, impl_store, impl_sub, OpCode,
 };
 
 #[derive(Debug, Clone)]
@@ -92,7 +92,7 @@ impl VM {
                 impl_ret(&mut self.pc, &mut self.ram, &mut self.stack);
             }
             OpCode::Load => {
-                impl_load(&mut self.pc, &mut self.ram, &mut self.stack);
+                impl_load(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
             }
             OpCode::Store => {
                 impl_store(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
@@ -102,6 +102,12 @@ impl VM {
             }
             OpCode::Input => {
                 impl_input(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+            }
+            OpCode::Eq => {
+                impl_eq(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+            }
+            OpCode::Dup => {
+                impl_dup(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
             }
             OpCode::Debug => {
                 self.pc += 1;
