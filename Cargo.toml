@@ -4,3 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+
+[features]
+default = []
+
+[profile.release]
+lto = "thin"
+opt-level = 3
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.release-obfuscated]
+inherits = "release"
+# Additional settings for obfuscation if needed

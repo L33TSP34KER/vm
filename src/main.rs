@@ -1,19 +1,15 @@
 mod vm;
+use std::io::Read;
+
 use vm::VM;
+
+const DATA: &[u8] = include_bytes!("../password.bin");
 
 fn main() {
     let mut virtual_machine = VM::VM::new();
 
-    virtual_machine.add_byte(0xfc);
-    virtual_machine.add_byte(0xff);
-
-    for _ in 0..250 {
-        virtual_machine.add_byte(0xf1);
-        virtual_machine.add_byte(0);
+    for i in DATA {
+        virtual_machine.add_byte(*i);
     }
-
-    virtual_machine.add_byte(0xff);
-    virtual_machine.add_byte(0xff);
-
     virtual_machine.run();
 }

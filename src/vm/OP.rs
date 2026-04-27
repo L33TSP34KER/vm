@@ -1,3 +1,4 @@
+use std::process::exit;
 use std::{
     io::{Read, Write},
     usize,
@@ -7,6 +8,9 @@ use self::OpCode::*;
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum OpCode {
+    Nyaa = 0xEE,
+    Meow = 0xEF,
+    Nay = 0xf0,
     Push = 0xf1,
     Pop = 0xf2,
     Add = 0xf3,
@@ -20,18 +24,47 @@ pub enum OpCode {
     Print = 0xfb,
     Input = 0xfc,
     Eq = 0xfd,
-    Dup = 0xfe,
+    Check = 0xfe,
     Debug = 0xff,
 }
 
 impl OpCode {
     pub fn iterator() -> impl Iterator<Item = OpCode> {
         [
-            Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print, Input, Eq, Dup,
+            Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print, Input, Eq, Check, Nay, Meow, Nyaa,
         ]
         .iter()
         .copied()
     }
+}
+
+pub fn impl_Nyaa(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+    stack.push(b'N');
+    stack.push(b'y');
+    stack.push(b'a');
+    stack.push(b'a');
+    for i in stack {
+        print!("{}", *i as char);
+    }
+    println!("Nyaaaa");
+    *pc += 2;
+    false
+}
+pub fn impl_Meow(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+    stack.push(b'M');
+    stack.push(b'e');
+    stack.push(b'o');
+    stack.push(b'w');
+    stack.push(b'w');
+    stack.push(b'w');
+    for i in stack {
+        print!("{}", *i as char);
+    }
+    *pc += 2;
+    false
+}
+pub fn impl_nay(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+    exit(1);
 }
 
 pub fn impl_print(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
@@ -48,13 +81,13 @@ pub fn impl_push(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8
     if let Some(dest) = dest {
         stack.push(dest);
     }
-    *pc += 1;
+    *pc += 2;
     false
 }
 
 pub fn impl_pop(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
     stack.pop();
-    *pc += 1;
+    *pc += 2;
     true
 }
 
@@ -144,6 +177,7 @@ pub fn impl_input(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key:
     for byte in input.bytes() {
         stack.push(byte);
     }
+    stack.push(0);
     *pc += 1;
     true
 }
@@ -160,11 +194,24 @@ pub fn impl_eq(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8
     true
 }
 
-pub fn impl_dup(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
-    if let Some(top) = stack.last().copied() {
-        stack.push(top);
-        *pc += 1;
-        return true;
+fn calc(last: usize, stack: &mut Vec<u8>) -> usize {
+    if let Some(value) = stack.pop() {
+        calc(last + value as usize, stack)
+    } else {
+        last
     }
+}
+
+pub fn impl_dup(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
+    // UwUSuperPasswordTguezTuLauraJmsTfacon
+    if stack.len() != 37 {
+        let a = calc(0, stack);
+        if a == 3797 {
+            *pc = 85;
+        } else {
+            *pc = 0;
+        }
+    }
+    *pc += 2;
     false
 }
