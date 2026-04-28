@@ -31,7 +31,8 @@ pub enum OpCode {
 impl OpCode {
     pub fn iterator() -> impl Iterator<Item = OpCode> {
         [
-            Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print, Input, Eq, Check, Nay, Meow, Nyaa,
+            Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print, Input, Eq, Check,
+            Nay, Meow, Nyaa,
         ]
         .iter()
         .copied()
