@@ -5,6 +5,7 @@ use std::{
 };
 
 use self::OpCode::*;
+use crate::vm::RAM;
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum OpCode {
@@ -39,7 +40,7 @@ impl OpCode {
     }
 }
 
-pub fn impl_Nyaa(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+pub fn impl_Nyaa(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
     stack.push(b'N');
     stack.push(b'y');
     stack.push(b'a');
@@ -51,7 +52,7 @@ pub fn impl_Nyaa(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8
     *pc += 2;
     false
 }
-pub fn impl_Meow(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+pub fn impl_Meow(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
     stack.push(b'M');
     stack.push(b'e');
     stack.push(b'o');
@@ -64,12 +65,15 @@ pub fn impl_Meow(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8
     *pc += 2;
     false
 }
-pub fn impl_nay(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+
+#[inline(never)]
+pub fn impl_nay(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
     exit(1);
 }
 
-pub fn impl_print(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
-    let dest = ram.get(*pc + 1).copied().map(|b| b ^ key);
+#[inline(never)]
+pub fn impl_print(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
+    let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
     let char = stack.get(dest.unwrap() as usize).copied();
     print!("{}", char.unwrap() as char);
     let _ = std::io::stdout().flush();
@@ -77,8 +81,9 @@ pub fn impl_print(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u
     false
 }
 
-pub fn impl_push(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
-    let dest = ram.get(*pc + 1).copied().map(|b| b ^ key);
+#[inline(never)]
+pub fn impl_push(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
+    let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
     if let Some(dest) = dest {
         stack.push(dest);
     }
@@ -86,13 +91,15 @@ pub fn impl_push(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8
     false
 }
 
-pub fn impl_pop(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
+#[inline(never)]
+pub fn impl_pop(pc: &mut usize, _ram: &mut RAM::RAM, stack: &mut Vec<u8>) -> bool {
     stack.pop();
     *pc += 2;
     true
 }
 
-pub fn impl_add(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
+#[inline(never)]
+pub fn impl_add(pc: &mut usize, _ram: &mut RAM::RAM, stack: &mut Vec<u8>) -> bool {
     let a = stack.pop().unwrap_or(0);
     let b = stack.pop().unwrap_or(0);
     stack.push(b.wrapping_add(a));
@@ -100,7 +107,8 @@ pub fn impl_add(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool
     true
 }
 
-pub fn impl_sub(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
+#[inline(never)]
+pub fn impl_sub(pc: &mut usize, _ram: &mut RAM::RAM, stack: &mut Vec<u8>) -> bool {
     let a = stack.pop().unwrap_or(0);
     let b = stack.pop().unwrap_or(0);
     stack.push(b.wrapping_sub(a));
@@ -108,17 +116,19 @@ pub fn impl_sub(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool
     true
 }
 
-pub fn impl_jmp(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
-    let dest = ram.get(*pc + 1).copied().map(|b| b ^ key);
+#[inline(never)]
+pub fn impl_jmp(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
+    let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
     if let Some(dest) = dest {
         *pc = dest as usize;
     }
     true
 }
 
-pub fn impl_jz(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+#[inline(never)]
+pub fn impl_jz(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
     let val = stack.pop().unwrap();
-    let dest = ram.get(*pc + 1).copied().map(|b| b ^ key);
+    let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
     if val == 0 {
         if let Some(dest) = dest {
             *pc = dest as usize;
@@ -129,8 +139,9 @@ pub fn impl_jz(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) 
     true
 }
 
-pub fn impl_call(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
-    let dest = ram.get(*pc + 1).copied().map(|b| b ^ key);
+#[inline(never)]
+pub fn impl_call(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
+    let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
     if let Some(dest) = dest {
         stack.push((*pc + 2) as u8);
         *pc = dest as usize;
@@ -139,7 +150,8 @@ pub fn impl_call(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8
     false
 }
 
-pub fn impl_ret(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool {
+#[inline(never)]
+pub fn impl_ret(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>) -> bool {
     if let Some(addr) = stack.pop() {
         *pc = addr as usize;
         return true;
@@ -147,9 +159,10 @@ pub fn impl_ret(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>) -> bool 
     false
 }
 
-pub fn impl_load(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
+#[inline(never)]
+pub fn impl_load(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
     if let Some(addr) = stack.pop() {
-        if let Some(val) = ram.get(addr as usize).copied() {
+        if let Ok(val) = ram.get(addr as usize) {
             stack.push(val ^ key);
         }
     }
@@ -157,21 +170,21 @@ pub fn impl_load(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8
     true
 }
 
-pub fn impl_store(pc: &mut usize, ram: &mut Vec<u8>, stack: &mut Vec<u8>, key: u8) -> bool {
-    let dest = ram.get(*pc + 1).copied().map(|b| b ^ key);
+#[inline(never)]
+pub fn impl_store(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
+    let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
     let value = stack.first().copied();
 
     if let (Some(dest), Some(value)) = (dest, value) {
         stack.remove(0);
-        if dest < ram.len() as u8 {
-            ram[dest as usize] = value ^ key;
-        }
+        ram[dest as usize] = value ^ key;
     }
     *pc += 3;
     true
 }
 
-pub fn impl_input(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
+#[inline(never)]
+pub fn impl_input(pc: &mut usize, _ram: &mut RAM::RAM, stack: &mut Vec<u8>, _key: u8) -> bool {
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
     input.pop();
@@ -183,7 +196,8 @@ pub fn impl_input(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key:
     true
 }
 
-pub fn impl_eq(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
+#[inline(never)]
+pub fn impl_eq(pc: &mut usize, _ram: &mut RAM::RAM, stack: &mut Vec<u8>, _key: u8) -> bool {
     if stack.len() >= 2 {
         let a = stack.pop().unwrap();
         let b = stack.pop().unwrap();
@@ -195,6 +209,7 @@ pub fn impl_eq(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8
     true
 }
 
+#[inline(never)]
 fn calc(last: usize, stack: &mut Vec<u8>) -> usize {
     if let Some(value) = stack.pop() {
         calc(last + value as usize, stack)
@@ -203,7 +218,8 @@ fn calc(last: usize, stack: &mut Vec<u8>) -> usize {
     }
 }
 
-pub fn impl_dup(pc: &mut usize, _ram: &mut Vec<u8>, stack: &mut Vec<u8>, _key: u8) -> bool {
+#[inline(never)]
+pub fn impl_dup(pc: &mut usize, _ram: &mut RAM::RAM, stack: &mut Vec<u8>, _key: u8) -> bool {
     // UwUSuperPasswordTguezTuLauraJmsTfacon
     if stack.len() != 37 {
         let a = calc(0, stack);

@@ -1,4 +1,9 @@
-use std::{io::Result, ops::{self, Index}, time::UNIX_EPOCH, u8};
+use std::{
+    io::Result,
+    ops::{self, Index},
+    time::UNIX_EPOCH,
+    u8,
+};
 
 #[derive(Debug, Clone)]
 pub struct RAM {
@@ -58,21 +63,28 @@ impl RAM {
     pub fn debug(&mut self) {
         println!("{:?}", self.ram);
     }
+
+    pub fn set(&mut self, pc: usize, value: u8) {
+        let idx = pc ^ self.key;
+        if idx >= self.ram.len() {
+            for i in self.ram.len()..idx + 1 {
+                self.ram.push(0x0);
+            }
+        }
+        self.ram[idx] = value;
+    }
 }
 impl ops::Index<usize> for RAM {
     type Output = u8;
 
     fn index(&self, _rhs: usize) -> &Self::Output {
-        println!("> Foo.add(Bar) was called");
         let idx = _rhs ^ self.key;
         &self.ram[idx]
     }
 }
 
 impl ops::IndexMut<usize> for RAM {
-
     fn index_mut(&mut self, _rhs: usize) -> &mut Self::Output {
-        println!("> Foo.add(Bar) was called");
         let idx = _rhs ^ self.key;
         &mut self.ram[idx]
     }

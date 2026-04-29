@@ -1,25 +1,52 @@
 mod vm;
-
-use hide_macro::decrypt;
 use vm::VM;
-
 use crate::vm::RAM;
+use std::arch::global_asm;
 
-fn main() {
+global_asm!(
+    ".att_syntax prefix",
+
+    ".section .bss",
+    ".Ltarget_storage:",
+    ".zero 8",
+
+    ".section .init_array,\"aw\"",
+    ".quad .Ldo_init",
+
+    ".section .text",
+
+    ".Ldo_init:",
+    "lea .Ltarget_storage(%rip), %rax",
+    "lea real_code(%rip), %rcx",
+    "movq %rcx, (%rax)",
+    "ret",
+
+    ".global o",
+    "o:",
+    "movq .Ltarget_storage(%rip), %rax",
+    "jmp *%rax",
+);
+
+
+unsafe extern "C" {
+    fn o();
+}
+
+#[unsafe(no_mangle)]
+unsafe fn real_code() {
     let mut ram = RAM::RAM::setup();
     cryptify::flow_stmt!();
     let mut virtual_machine = VM::VM::new();
     cryptify::flow_stmt!();
 
-    let secret = decrypt!(include_bytes!("../password.bin"));
+    let secret = include_bytes!("../password.bin");
 
     for i in secret {
-        ram.add_byte(*i);
+        virtual_machine.add_byte(*i);
     }
+    virtual_machine.run();
+}
 
-    for i in 0..secret.len() {
-        println!("{}: {}", i, ram.get_value(i));
-    }
-    ram.debug();
-    //virtual_machine.run();
+fn main() {
+    unsafe {o()}
 }
