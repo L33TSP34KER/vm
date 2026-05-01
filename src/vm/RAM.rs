@@ -5,27 +5,31 @@ use std::{
     u8,
 };
 
+use zeroize::Zeroizing;
+
 #[derive(Debug, Clone)]
 pub struct RAM {
-    ram: Vec<u8>,
+    ram: Zeroizing<Vec<u8>>,
     count: usize,
-    key: usize,
+    key: Zeroizing<usize>,
 }
 
 impl RAM {
     pub fn setup() -> RAM {
         RAM {
-            ram: Vec::new(),
+            ram: Zeroizing::new(Vec::new()),
             count: 0,
-            key: (std::time::SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u16) as usize,
+            key: Zeroizing::new(
+                (std::time::SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as u16) as usize,
+            ),
         }
     }
 
     pub fn push(&mut self, byte: u8) {
-        let idx = self.count ^ self.key;
+        let idx = self.count ^ *self.key;
         if idx >= self.ram.len() {
             for i in self.ram.len()..idx + 1 {
                 self.ram.push(0x0);
@@ -36,7 +40,7 @@ impl RAM {
     }
 
     pub fn add_byte(&mut self, byte: u8) {
-        let idx = self.count ^ self.key;
+        let idx = self.count ^ *self.key;
         if idx >= self.ram.len() {
             for i in self.ram.len()..idx + 1 {
                 self.ram.push(0x0);
@@ -47,12 +51,12 @@ impl RAM {
     }
 
     pub fn get_value(&mut self, pc: usize) -> u8 {
-        let idx = pc ^ self.key;
+        let idx = pc ^ *self.key;
         self.ram[idx]
     }
 
     pub fn get(&self, pc: usize) -> Result<u8> {
-        let idx = pc ^ self.key;
+        let idx = pc ^ *self.key;
         Ok(self.ram[idx])
     }
 
@@ -65,7 +69,7 @@ impl RAM {
     }
 
     pub fn set(&mut self, pc: usize, value: u8) {
-        let idx = pc ^ self.key;
+        let idx = pc ^ *self.key;
         if idx >= self.ram.len() {
             for i in self.ram.len()..idx + 1 {
                 self.ram.push(0x0);
@@ -78,14 +82,14 @@ impl ops::Index<usize> for RAM {
     type Output = u8;
 
     fn index(&self, _rhs: usize) -> &Self::Output {
-        let idx = _rhs ^ self.key;
+        let idx = _rhs ^ *self.key;
         &self.ram[idx]
     }
 }
 
 impl ops::IndexMut<usize> for RAM {
     fn index_mut(&mut self, _rhs: usize) -> &mut Self::Output {
-        let idx = _rhs ^ self.key;
+        let idx = _rhs ^ *self.key;
         &mut self.ram[idx]
     }
 }

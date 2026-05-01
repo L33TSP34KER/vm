@@ -1,22 +1,29 @@
+use rust_code_obfuscator::Obfuscate;
+
 use std::{
-    fmt::Debug,
-    process::exit,
-    time::{self, Instant, SystemTime, UNIX_EPOCH},
+    collections::HashMap, fmt::Debug, process::exit, time::{self, Instant, SystemTime, UNIX_EPOCH}
 };
 
 use cryptify;
+use zeroize::Zeroizing;
 
-use crate::vm::{OP::{
-    OpCode, impl_Meow, impl_Nyaa, impl_add, impl_call, impl_dup, impl_eq, impl_input, impl_jmp,
-    impl_jz, impl_load, impl_nay, impl_pop, impl_print, impl_push, impl_ret, impl_store, impl_sub,
-}, RAM};
+use crate::vm::{
+    OP::{
+        OpCode, impl_Meow, impl_Nyaa, impl_add, impl_call, impl_dup, impl_eq, impl_input, impl_jmp,
+        impl_jz, impl_load, impl_nay, impl_pop, impl_print, impl_push, impl_ret, impl_store,
+        impl_sub,
+    },
+    RAM,
+};
 
 #[derive(Debug, Clone)]
 pub struct VM {
-    ram: RAM::RAM, 
+    ram: RAM::RAM,
+    // (id)u8 (idx)usize
+    func_table: HashMap<u8, usize>,
     stack: Vec<u8>,
     pc: usize,
-    key: u8,
+    key: Zeroizing<u8>,
     last_op_time: Option<Instant>,
     crash_in_10: bool,
     crash_counter: u8,
@@ -27,12 +34,15 @@ impl VM {
     pub fn new() -> VM {
         VM {
             ram: RAM::RAM::setup(),
+            func_table: HashMap::new(),
             stack: Vec::new(),
             pc: 0,
-            key: (std::time::SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u8),
+            key: Zeroizing::new(
+                std::time::SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as u8,
+            ),
             last_op_time: None,
             crash_in_10: false,
             crash_counter: 0,
@@ -49,9 +59,15 @@ impl VM {
                 println!();
             }
             if i == self.pc {
-                print!("{i}:[{}] ", self.ram.get(i).unwrap() ^ self.key);
+                let o  = self.ram.get(i).unwrap() ^ *self.key;
+                let op = OpCode::iterator().find(|&i| i as u8 == o);
+                if op.is_some() {
+                    print!("{i}:[{:?}] ", op.unwrap());
+                } else {
+                    print!("{i}:[{:?}] ", o);
+                }
             } else {
-                print!("{i}:{} ", self.ram.get(i).unwrap() ^ self.key);
+                print!("{i}:{} ", self.ram.get(i).unwrap() ^ *self.key);
             }
         }
         println!();
@@ -63,7 +79,7 @@ impl VM {
     }
 
     fn get_op(&mut self) -> Option<OpCode> {
-        let byte = self.ram.get(self.pc).unwrap() ^ self.key;
+        let byte = self.ram.get(self.pc).unwrap() ^ *self.key;
 
         let high = byte >> 4;
 
@@ -81,7 +97,21 @@ impl VM {
         OpCode::iterator().find(|&i| i as u8 == byte)
     }
 
+    fn ftable(&mut self) {
+        for i in 0..self.ram.len() {
+            if self.ram[i] ^ *self.key == OpCode::FN as u8{
+                let id = self.ram[i + 1] ^ *self.key;
+                self.func_table.insert(id, i);
+            }
+        }
+    }
+
+    pub fn get_ftable(&self) -> &HashMap<u8, usize> {
+        self.get_ftable()
+    }
+
     fn check(&mut self) {
+        cryptify::flow_stmt!();
         let a = time::SystemTime::now().duration_since(self.time);
         cryptify::flow_stmt!();
         match a {
@@ -97,7 +127,8 @@ impl VM {
                     println!();
 
                     for i in 0..self.ram.len() {
-                        self.ram.set(i, (0xEE + (i as u8 % (255 - 0xEE))) ^ self.key);
+                        self.ram
+                            .set(i, (0xEE + (i as u8 % (255 - 0xEE))) ^ *self.key);
                     }
                 }
             }
@@ -118,20 +149,24 @@ impl VM {
         let mut skip: bool = false;
         cryptify::flow_stmt!();
         cryptify::flow_stmt!();
+        //self.debug();
         match op {
+            OpCode::FN => {
+                self.pc += 2;
+            }
             OpCode::Nyaa => {
                 cryptify::flow_stmt!();
-                impl_Nyaa(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_Nyaa(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Meow => {
                 cryptify::flow_stmt!();
-                impl_Meow(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_Meow(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Nay => {
                 cryptify::flow_stmt!();
-                impl_nay(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_nay(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Push => {
@@ -141,10 +176,11 @@ impl VM {
                     && last.elapsed() > std::time::Duration::from_secs(1)
                 {
                     for i in 0..self.ram.len() {
-                        self.ram.set(i, (0xEE + (i as u8 % (255 - 0xEE))) ^ self.key);
+                        self.ram
+                            .set(i, (0xEE + (i as u8 % (255 - 0xEE))) ^ *self.key);
                     }
                 }
-                if impl_push(&mut self.pc, &mut self.ram, &mut self.stack, self.key) {
+                if impl_push(&mut self.pc, &mut self.ram, &mut self.stack, *self.key) {
                     cryptify::flow_stmt!();
                     cryptify::flow_stmt!();
                     return;
@@ -172,19 +208,19 @@ impl VM {
             OpCode::Jmp => {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_jmp(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_jmp(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Jz => {
                 cryptify::flow_stmt!();
-                impl_jz(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_jz(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Call => {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_call(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_call(&self.func_table, &mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Ret => {
@@ -195,36 +231,36 @@ impl VM {
             OpCode::Load => {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_load(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_load(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Store => {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_store(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_store(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Print => {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_print(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_print(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 cryptify::flow_stmt!();
             }
             OpCode::Input => {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_input(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_input(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
                 skip = true;
             }
             OpCode::Eq => {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_eq(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_eq(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
             }
             OpCode::Check => {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_dup(&mut self.pc, &mut self.ram, &mut self.stack, self.key);
+                impl_dup(&mut self.pc, &mut self.ram, &mut self.stack, *self.key);
             }
             OpCode::Debug => {
                 cryptify::flow_stmt!();
@@ -238,19 +274,21 @@ impl VM {
             && last.elapsed() > std::time::Duration::from_secs(1)
             && !skip
         {
-                    for i in 0..self.ram.len() {
-                        self.ram.set(i, (0xEE + (i as u8 % (255 - 0xEE))) ^ self.key);
-                    }
+            for i in 0..self.ram.len() {
+                self.ram
+                    .set(i, (0xEE + (i as u8 % (255 - 0xEE))) ^ *self.key);
+            }
         }
     }
 
     pub fn add_byte(&mut self, byte: u8) {
-        self.ram.push(byte ^ self.key);
+        self.ram.push(byte as u8 ^ *self.key);
     }
 
     pub fn run(&mut self) {
         self.check();
         cryptify::flow_stmt!();
+        self.ftable();
         while self.pc < self.ram.len() {
             cryptify::flow_stmt!();
             if let Some(op) = self.get_op() {
@@ -268,10 +306,13 @@ impl VM {
                 print!(" ");
 
                 for i in 0..self.ram.len() {
-                    self.ram.set(i, (0xEE + (i as u8 % (255 - 0xEE))) ^ self.key);
+                    self.ram
+                        .set(i, (0xEE + (i as u8 % (255 - 0xEE))) ^ *self.key);
                 }
                 self.pc += 2;
             }
         }
     }
 }
+
+pub const NONCE_B: [u8; 9] = *b"0aXXBv4ZZ";

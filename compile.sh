@@ -15,23 +15,6 @@ if [ ! -f "$asm_file" ]; then
     exit 1
 fi
 
-#!/bin/bash
-# Compile .asm to .bin for the custom VM
-# Usage: ./compile.sh input.asm
-
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 <asm_file>"
-    exit 1
-fi
-
-asm_file="$1"
-bin_file="${asm_file%.asm}.bin"
-
-if [ ! -f "$asm_file" ]; then
-    echo "Error: $asm_file not found"
-    exit 1
-fi
-
 # Use python to parse and generate binary
 python3 -c "
 import sys
@@ -39,6 +22,7 @@ import struct
 
 # Define opcodes
 op = {
+    'FN': 0xed,
     'NYAA': 0xee,
     'MEOW': 0xef,
     'NAY': 0xf0,
@@ -79,4 +63,3 @@ with open('$bin_file', 'wb') as out:
 "
 
 echo "Compiled $asm_file to $bin_file"
-

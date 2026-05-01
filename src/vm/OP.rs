@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::process::exit;
 use std::{
     io::{Read, Write},
@@ -6,9 +7,11 @@ use std::{
 
 use self::OpCode::*;
 use crate::vm::RAM;
+use crate::vm::VM::VM;
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum OpCode {
+    FN = 0xED,
     Nyaa = 0xEE,
     Meow = 0xEF,
     Nay = 0xf0,
@@ -29,14 +32,40 @@ pub enum OpCode {
     Debug = 0xff,
 }
 
+pub const KEY_B: [u8; 20] = *b"AS6lXXVAd1oXXg6q#fm1"; // junk at indices 4,5,11,12
 impl OpCode {
     pub fn iterator() -> impl Iterator<Item = OpCode> {
         [
             Push, Pop, Add, Sub, Jmp, Jz, Call, Ret, Load, Store, Debug, Print, Input, Eq, Check,
-            Nay, Meow, Nyaa,
+            Nay, Meow, Nyaa, FN,
         ]
         .iter()
         .copied()
+    }
+
+    pub fn from_u8(val: u8) -> Option<OpCode> {
+        match val {
+            0xED => Some(FN),
+            0xEE => Some(Nyaa),
+            0xEF => Some(Meow),
+            0xf0 => Some(Nay),
+            0xf1 => Some(Push),
+            0xf2 => Some(Pop),
+            0xf3 => Some(Add),
+            0xf4 => Some(Sub),
+            0xf5 => Some(Jmp),
+            0xf6 => Some(Jz),
+            0xf7 => Some(Call),
+            0xf8 => Some(Ret),
+            0xf9 => Some(Load),
+            0xfa => Some(Store),
+            0xfb => Some(Print),
+            0xfc => Some(Input),
+            0xfd => Some(Eq),
+            0xfe => Some(Check),
+            0xff => Some(Debug),
+            _ => None,
+        }
     }
 }
 
@@ -75,7 +104,7 @@ pub fn impl_nay(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8
 pub fn impl_print(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
     let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
     let char = stack.get(dest.unwrap() as usize).copied();
-    print!("{}", char.unwrap() as char);
+    print!("{}", char.unwrap_or_default() as char);
     let _ = std::io::stdout().flush();
     *pc += 2;
     false
@@ -94,7 +123,7 @@ pub fn impl_push(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u
 #[inline(never)]
 pub fn impl_pop(pc: &mut usize, _ram: &mut RAM::RAM, stack: &mut Vec<u8>) -> bool {
     stack.pop();
-    *pc += 2;
+    *pc += 1;
     true
 }
 
@@ -140,11 +169,11 @@ pub fn impl_jz(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8)
 }
 
 #[inline(never)]
-pub fn impl_call(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
+pub fn impl_call(ftable: &HashMap<u8, usize>, pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
     let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
-    if let Some(dest) = dest {
-        stack.push((*pc + 2) as u8);
-        *pc = dest as usize;
+    if let Some(dest) = dest 
+    && let Some(idx) = ftable.get(&dest){
+        *pc = *idx + 2;
         return true;
     }
     false
