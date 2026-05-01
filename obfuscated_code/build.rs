@@ -1,1 +1,0 @@
-fn main () { cryptify :: flow_stmt ! () ; println ! ("cargo:rerun-if-changed=build.rs") ; }

@@ -1,2 +1,0 @@
-PUSH 0x1
-DEBUG
