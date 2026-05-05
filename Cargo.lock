@@ -229,6 +229,9 @@ dependencies = [
 [[package]]
 name = "vm-db"
 version = "0.1.0"
+dependencies = [
+ "vm-core",
+]
 
 [[package]]
 name = "wasi"

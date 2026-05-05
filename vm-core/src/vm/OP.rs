@@ -169,11 +169,18 @@ pub fn impl_jz(pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8)
 }
 
 #[inline(never)]
-pub fn impl_call(ftable: &HashMap<u8, usize>, pc: &mut usize, ram: &mut RAM::RAM, stack: &mut Vec<u8>, key: u8) -> bool {
+pub fn impl_call(
+    ftable: &HashMap<u8, usize>,
+    pc: &mut usize,
+    ram: &mut RAM::RAM,
+    stack: &mut Vec<u8>,
+    key: u8,
+) -> bool {
     let dest = ram.get(*pc + 1).ok().map(|b| b ^ key);
-    if let Some(dest) = dest 
-    && let Some(idx) = ftable.get(&dest){
-        *pc = *idx + 2;
+    if let Some(dest) = dest
+        && let Some(idx) = ftable.get(&dest)
+    {
+        *pc = *idx;
         return true;
     }
     false

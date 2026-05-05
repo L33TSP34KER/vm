@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, fmt::Debug, process::exit, time::{self, Instant, SystemTime, UNIX_EPOCH}
+    collections::HashMap,
+    fmt::Debug,
+    process::exit,
+    time::{self, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use cryptify;
@@ -56,7 +59,7 @@ impl VM {
                 println!();
             }
             if i == self.pc {
-                let o  = self.ram.get(i).unwrap() ^ *self.key;
+                let o = self.ram.get(i).unwrap() ^ *self.key;
                 let op = OpCode::iterator().find(|&i| i as u8 == o);
                 if op.is_some() {
                     print!("{i}:[{:?}] ", op.unwrap());
@@ -73,6 +76,9 @@ impl VM {
             print!("{} ", self.stack.get(i).unwrap());
         }
         println!();
+    }
+    pub fn get_raw(&mut self, id: usize) -> Option<u8> {
+        Some(self.ram.get(id).unwrap() ^ *self.key)
     }
 
     pub fn get_op(&mut self) -> Option<OpCode> {
@@ -95,7 +101,7 @@ impl VM {
 
     pub fn ftable(&mut self) {
         for i in 0..self.ram.len() {
-            if self.ram[i] ^ *self.key == OpCode::FN as u8{
+            if self.ram[i] ^ *self.key == OpCode::FN as u8 {
                 let id = self.ram[i + 1] ^ *self.key;
                 self.func_table.insert(id, i);
             }
@@ -103,7 +109,7 @@ impl VM {
     }
 
     pub fn get_ftable(&self) -> &HashMap<u8, usize> {
-        self.get_ftable()
+        &self.func_table
     }
 
     pub fn check(&mut self) {
@@ -209,7 +215,13 @@ impl VM {
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
                 cryptify::flow_stmt!();
-                impl_call(&self.func_table, &mut self.pc, &mut self.ram, &mut self.stack, *self.key);
+                impl_call(
+                    &self.func_table,
+                    &mut self.pc,
+                    &mut self.ram,
+                    &mut self.stack,
+                    *self.key,
+                );
                 cryptify::flow_stmt!();
             }
             OpCode::Ret => {

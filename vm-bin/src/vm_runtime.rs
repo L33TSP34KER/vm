@@ -1,7 +1,7 @@
 use crate::crypto_helpers::{get_key, get_nonce};
 use chacha20::{
-    cipher::{KeyIvInit, StreamCipher},
     ChaCha20,
+    cipher::{KeyIvInit, StreamCipher},
 };
 use cryptify::flow_stmt;
 use std::fs::File;

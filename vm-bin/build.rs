@@ -1,5 +1,5 @@
-use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::ChaCha20;
+use chacha20::cipher::{KeyIvInit, StreamCipher};
 use std::env;
 use std::fs;
 
